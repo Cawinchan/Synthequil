@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Remove large data
+raw_data/
+preprocessed_data/
+pre-trained_fasttext/
+
