@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 
 # Remove large data
-raw_data/
-preprocessed_data/
+raw_data/*
+preprocessed_data/*
 pre-trained_fasttext/
 
