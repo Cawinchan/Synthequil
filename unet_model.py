@@ -19,9 +19,8 @@ class UNet(nn.Module):
         for i in instruments:
             self.models[i] = Basic_UNet(feature_count_list,kernel_size,activation_type,sample_block_depth,bottleneck_depth)
         
-    def forward(self,input):
-        print(input.shape)
-        return {i: self.models[i](input) for i in self.models}
+    def forward(self,input,instrument):
+        return self.models[instrument](input)
 
 class Basic_UNet(nn.Module):
 

@@ -1,6 +1,7 @@
 import argparse
 import os
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from dataset import DemixingAudioDataset
 from unet_model import UNet
@@ -44,7 +45,8 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # Define model and optimizer
-    audio_model = UNet([2]+[4],5,"leaky_relu",INSTRUMENTS).cuda(device)
+    audio_model = nn.DataParallel(UNet([2**i for i in range(1,3)],5,"leaky_relu",INSTRUMENTS))
+    print(sum(p.numel() for p in audio_model.parameters() if p.requires_grad))
     optimizer = optim.SGD(audio_model.parameters(),lr=0.1,momentum=0.9)
 
     # Define loss criterion
@@ -70,17 +72,20 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
                 input = i[0].to(device)
                 target = i[1]
 
-                optimizer.zero_grad()
+                for j in INSTRUMENTS:
+                    optimizer.zero_grad()
 
-                pred = audio_model(input)
-                loss = criterion(pred,target)
-                
-                loss.backward()
-                optimizer.step()
-                
-                total_loss += loss.item()
+                    pred = audio_model(input,j)
+                    loss = criterion(pred,target[j].to(device))
+
+                    print(torch.cuda.memory_allocated())
+
+                    loss.backward()
+                    optimizer.step()
+
+                    total_loss += loss.item()
             
-            avg_loss = total_loss / len(train_dataloader)
+            avg_loss = total_loss / len(train_dataloader) / len(INSTRUMENTS)
             print("/tAverage loss during training: {}".format(avg_loss))
             print("Saving model...")
             save_model(audio_model,optimizer,current_epoch+1,os.path.join(train_checkpoint_dir,"model_" + str(current_epoch+1)))
@@ -93,11 +98,12 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
             input = i[0].to(device)
             target = i[1]
 
-            loss = criterion(audio_model(input),target)
+            for j in INSTRUMENTS:
+                loss = criterion(audio_model(input,j),target[j].to(device))
             
-            total_loss += loss.item()
+                total_loss += loss.item()
         
-        avg_loss = total_loss / len(test_dataloader)
+        avg_loss = total_loss / len(test_dataloader) / len(INSTRUMENTS)
         print("/tAverage loss during validation/test: {}".format(avg_loss))
 
 if __name__=="__main__":
