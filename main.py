@@ -1,4 +1,5 @@
 import argparse
+import chunk
 import os
 import torch
 import torch.nn as nn
@@ -6,12 +7,21 @@ import torch.optim as optim
 from dataset import DemixingAudioDataset
 from unet_model import UNet
 from torch.utils.data import DataLoader, random_split
-from utils import save_model, load_model, negative_SDR
+from utils import save_model, load_model, negative_SDR, calculate_chunk_size
+from alive_progress import alive_bar
 
 INSTRUMENTS = ("bass", "drums", "vocals", "other")
 TRAIN_SPLIT = 0.8
+KERNEL_SIZE = 4
+FEATURE_COUNT_LIST = [2] + [32*(2**i) for i in range(5)]
+SAMPLING_RATE = 44100
+CLIP_TIME = 2
 
 def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_count):
+
+    # Define chunk size
+    chunk_size = calculate_chunk_size(CLIP_TIME*SAMPLING_RATE,1,len(FEATURE_COUNT_LIST),KERNEL_SIZE)
+    print(chunk_size)
 
     # Get input directory, checkpoint directory, test model path
     input_dir = None
@@ -32,7 +42,7 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
     is_train = not test
 
     # Get Dataset object
-    audio_dataset = DemixingAudioDataset(input_dir)
+    audio_dataset = DemixingAudioDataset(input_dir,chunk_size)
     train_len = int(0.8*len(audio_dataset))
     train_dataset, test_dataset = random_split(audio_dataset,[train_len,len(audio_dataset)-train_len],
         generator=torch.Generator().manual_seed(100)) if is_train else (None, audio_dataset)
@@ -45,8 +55,7 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # Define model and optimizer
-    audio_model = nn.DataParallel(UNet([2**i for i in range(1,3)],5,"leaky_relu",INSTRUMENTS))
-    print(sum(p.numel() for p in audio_model.parameters() if p.requires_grad))
+    audio_model = nn.DataParallel(UNet(FEATURE_COUNT_LIST,KERNEL_SIZE,"leaky_relu",INSTRUMENTS))
     optimizer = optim.SGD(audio_model.parameters(),lr=0.1,momentum=0.9)
 
     # Define loss criterion
@@ -64,46 +73,68 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
         if is_train:
 
             total_loss = 0
+            item_count = 0
 
-            for i in train_dataloader:
+            with alive_bar(len(train_dataloader)) as bar:
+                for i in train_dataloader:
                 
-                audio_model.train()
+                    audio_model.train()
 
-                input = i[0].to(device)
-                target = i[1]
+                    for segment_idx in range(len(i[0])):
+                    
+                        input_data = i[0][segment_idx].to(device);
+                        if (input_data.shape[-1]<chunk_size): continue
+                    
 
-                for j in INSTRUMENTS:
-                    optimizer.zero_grad()
+                        for instr in INSTRUMENTS:
+                    
+                            optimizer.zero_grad()
 
-                    pred = audio_model(input,j)
-                    loss = criterion(pred,target[j].to(device))
+                            target = i[1][instr][segment_idx].to(device)
 
-                    print(torch.cuda.memory_allocated())
+                            pred = audio_model(input_data,instr)
+                            loss = criterion(pred,target)
 
-                    loss.backward()
-                    optimizer.step()
+                            loss.backward()
+                            optimizer.step()
 
-                    total_loss += loss.item()
+                            total_loss += loss.item()
+                            item_count += 1
+                    bar()
             
-            avg_loss = total_loss / len(train_dataloader) / len(INSTRUMENTS)
+            avg_loss = total_loss / item_count
             print("/tAverage loss during training: {}".format(avg_loss))
             print("Saving model...")
             save_model(audio_model,optimizer,current_epoch+1,os.path.join(train_checkpoint_dir,"model_" + str(current_epoch+1)))
         
         total_loss = 0
-            
-        for i in test_dataloader:
-            
-            audio_model.eval()
-            input = i[0].to(device)
-            target = i[1]
+        item_count = 0
 
-            for j in INSTRUMENTS:
-                loss = criterion(audio_model(input,j),target[j].to(device))
+        with alive_bar(len(test_dataloader)) as bar:
             
-                total_loss += loss.item()
+            for i in test_dataloader:
+            
+                audio_model.eval()
+
+                with torch.no_grad():
+                
+                    for segment_idx in range(len(i[0])):
+
+                        input_data = i[0][segment_idx].to(device);
+                        if (input_data.shape[-1]<chunk_size): continue
+
+                        for instr in INSTRUMENTS:
+
+                            target = i[1][instr][segment_idx].to(device)
+
+                            pred = audio_model(input_data,instr)
+                            loss = criterion(pred,target)
+
+                            total_loss += loss.item()
+                            item_count += 1
+                bar()
         
-        avg_loss = total_loss / len(test_dataloader) / len(INSTRUMENTS)
+        avg_loss = total_loss / item_count
         print("/tAverage loss during validation/test: {}".format(avg_loss))
 
 if __name__=="__main__":

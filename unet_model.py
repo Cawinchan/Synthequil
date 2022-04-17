@@ -2,6 +2,7 @@ from random import sample
 import torch
 import torch.nn as nn
 import copy
+import gc
 
 class UNet(nn.Module):
 
@@ -77,18 +78,18 @@ class Downsampling_Block(nn.Module):
         self.activation_type = activation_type
         self.depth = depth
 
-        self.num_intermediate_features = (self.num_input_features + self.num_output_features) // 2
+        self.num_intermediate_features = self.num_output_features
 
         self.preshortcut_block = []
         for i in range(depth):
             self.preshortcut_block.append(Conv1D_Block_With_Activation(num_input_features if i==0 else self.num_intermediate_features,
-                self.num_intermediate_features,kernel_size,activation_type))
+                self.num_intermediate_features,kernel_size,activation_type,stride=kernel_size//2))
         self.preshortcut_block = nn.ModuleList(self.preshortcut_block)
         
         self.postshortcut_block = []
         for i in range(depth):
             self.postshortcut_block.append(Conv1D_Block_With_Activation(self.num_intermediate_features if i==0 else num_output_features,
-                num_output_features,kernel_size,activation_type))
+                num_output_features,kernel_size,activation_type,stride=kernel_size//2))
         self.postshortcut_block = nn.ModuleList(self.postshortcut_block)
     
     def forward(self, input):
@@ -112,12 +113,12 @@ class Upsampling_Block(nn.Module):
         self.activation_type = activation_type
         self.depth = depth
 
-        self.num_intermediate_features = (self.num_input_features + self.num_output_features) // 2
+        self.num_intermediate_features = self.num_input_features
 
         self.preshortcut_block = []
         for i in range(depth):
             self.preshortcut_block.append(Conv1D_Block_With_Activation(num_input_features if i==0 else self.num_intermediate_features,
-                self.num_intermediate_features,kernel_size,activation_type,True))
+                self.num_intermediate_features,kernel_size,activation_type,transpose=True,stride=kernel_size//2))
         self.preshortcut_block = nn.ModuleList(self.preshortcut_block)
         
         self.shortcut_in_block = Conv1D_Block_With_Activation(self.num_intermediate_features,self.num_intermediate_features,1,"tanh")
@@ -125,7 +126,7 @@ class Upsampling_Block(nn.Module):
         self.postshortcut_block = []
         for i in range(depth):
             self.postshortcut_block.append(Conv1D_Block_With_Activation(self.num_intermediate_features*2 if i==0 else num_output_features,
-                num_output_features,kernel_size,activation_type,True))
+                num_output_features,kernel_size,activation_type,transpose=True,stride=kernel_size//2))
         self.postshortcut_block = nn.ModuleList(self.postshortcut_block)
 
     def forward(self, input, input_shortcut):
@@ -148,7 +149,7 @@ class Upsampling_Block(nn.Module):
 # Padding set to 0 and stride to 1
 class Conv1D_Block_With_Activation(nn.Module):
     
-    def __init__(self, num_input_features, num_output_features, kernel_size, activation_type, transpose=False):
+    def __init__(self, num_input_features, num_output_features, kernel_size, activation_type, transpose=False, stride=1):
         super().__init__()
         
         self.num_input_features = num_input_features
@@ -156,7 +157,7 @@ class Conv1D_Block_With_Activation(nn.Module):
         self.kernel_size = kernel_size
 
         self.conv = nn.Conv1d(num_input_features,num_output_features,
-            kernel_size) if not transpose else nn.ConvTranspose1d(num_input_features,num_output_features,kernel_size)
+            kernel_size,stride=stride) if not transpose else nn.ConvTranspose1d(num_input_features,num_output_features,kernel_size,stride=stride)
 
         assert activation_type in ("leaky_relu", "gelu", "tanh")
         self.activation_type = activation_type
@@ -170,5 +171,3 @@ class Conv1D_Block_With_Activation(nn.Module):
     def forward(self, input):
         conv_output = self.conv(input)
         return self.activation(conv_output)
-        
-        

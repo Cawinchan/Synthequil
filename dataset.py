@@ -6,7 +6,7 @@ import glob
 class DemixingAudioDataset(Dataset):
     """Demixing Audio dataset"""
 
-    def __init__(self, root_dir, transform=None):
+    def __init__(self, root_dir, chunk_size, transform=None):
         """
         Args:
             root_dir (string): Directory with all the audio.
@@ -29,6 +29,7 @@ class DemixingAudioDataset(Dataset):
             
         """
         self.root_dir = root_dir
+        self.chunk_size = chunk_size
         self.transform = transform
 
     def __len__(self):
@@ -45,7 +46,14 @@ class DemixingAudioDataset(Dataset):
         others_waveform, _ = torchaudio.load("{}/{}".format(glob.glob("{}/*".format(self.root_dir))[idx],'other.wav'))
         vocals_waveform, _ = torchaudio.load("{}/{}".format(glob.glob("{}/*".format(self.root_dir))[idx],'vocals.wav'))
 
+        mixture_waveform = torch.split(mixture_waveform,self.chunk_size,dim=-1)
+        bass_waveform = torch.split(bass_waveform,self.chunk_size,dim=-1)
+        drums_waveform = torch.split(drums_waveform,self.chunk_size,dim=-1)
+        others_waveform = torch.split(others_waveform,self.chunk_size,dim=-1)
+        vocals_waveform = torch.split(vocals_waveform,self.chunk_size,dim=-1)
+
         sample = (
+            
             mixture_waveform,
             {
                 "bass": bass_waveform,
