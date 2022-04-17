@@ -56,7 +56,7 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
 
     # Define model and optimizer
     audio_model = nn.DataParallel(UNet(FEATURE_COUNT_LIST,KERNEL_SIZE,"leaky_relu",INSTRUMENTS))
-    optimizer = optim.SGD(audio_model.parameters(),lr=0.1,momentum=0.9)
+    optimizer = optim.Adam(audio_model.parameters(),0.1)
 
     # Define loss criterion
     criterion = negative_SDR()
@@ -94,17 +94,20 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
 
                             pred = audio_model(input_data,instr)
                             loss = criterion(pred,target)
-
                             loss.backward()
                             optimizer.step()
+
+                            if True in torch.isnan(loss):
+                                print(input_data,pred,target,loss)
+                                raise Exception("Nan value found for loss, please diagnose")
 
                             total_loss += loss.item()
                             item_count += 1
                     bar()
             
             avg_loss = total_loss / item_count
-            print("/tAverage loss during training: {}".format(avg_loss))
-            print("Saving model...")
+            print("\tAverage loss during training: {}".format(avg_loss))
+            print("\tSaving model...")
             save_model(audio_model,optimizer,current_epoch+1,os.path.join(train_checkpoint_dir,"model_" + str(current_epoch+1)))
         
         total_loss = 0
@@ -130,12 +133,16 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
                             pred = audio_model(input_data,instr)
                             loss = criterion(pred,target)
 
+                            if True in torch.isnan(loss):
+                                print(input_data,pred,target)
+                                raise Exception("Nan value found for loss, please diagnose")
+
                             total_loss += loss.item()
                             item_count += 1
                 bar()
         
         avg_loss = total_loss / item_count
-        print("/tAverage loss during validation/test: {}".format(avg_loss))
+        print("\tAverage loss during validation/test: {}".format(avg_loss))
 
 if __name__=="__main__":
     

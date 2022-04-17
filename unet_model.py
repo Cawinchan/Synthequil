@@ -167,7 +167,9 @@ class Conv1D_Block_With_Activation(nn.Module):
             self.activation = nn.GELU()
         else:
             self.activation = nn.Tanh()
+
+        self.norm = nn.BatchNorm1d(num_output_features)
         
     def forward(self, input):
         conv_output = self.conv(input)
-        return self.activation(conv_output)
+        return self.activation(self.norm(conv_output))

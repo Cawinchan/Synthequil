@@ -26,9 +26,12 @@ def negative_SDR_single(pred, target):
     numerator = torch.sum(diff)
     
     denominator = torch.sum(torch.mul(target,target))
+    if denominator==0:
+        denominator = 1
     
     logarithm = torch.log(numerator/denominator) / math.log(10)
-    return 10 * logarithm
+    output = 10 * logarithm
+    return output
 
 def calculate_chunk_size(original_length,sample_block_depth,feature_list_len,kernel_size):
 
