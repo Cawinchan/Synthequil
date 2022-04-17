@@ -15,13 +15,13 @@ TRAIN_SPLIT = 0.8
 KERNEL_SIZE = 4
 FEATURE_COUNT_LIST = [2] + [32*(2**i) for i in range(5)]
 SAMPLING_RATE = 44100
-CLIP_TIME = 2
+CLIP_TIME = 30
 
 def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_count):
 
     # Define chunk size
     chunk_size = calculate_chunk_size(CLIP_TIME*SAMPLING_RATE,1,len(FEATURE_COUNT_LIST),KERNEL_SIZE)
-    print(chunk_size)
+    print("Input to be divided into chunks of {} samples".format(chunk_size))
 
     # Get input directory, checkpoint directory, test model path
     input_dir = None
@@ -56,7 +56,7 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
 
     # Define model and optimizer
     audio_model = nn.DataParallel(UNet(FEATURE_COUNT_LIST,KERNEL_SIZE,"leaky_relu",INSTRUMENTS))
-    optimizer = optim.Adam(audio_model.parameters(),0.1)
+    optimizer = optim.Adam(audio_model.parameters(),0.01)
 
     # Define loss criterion
     criterion = negative_SDR()
