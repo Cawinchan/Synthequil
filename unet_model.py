@@ -172,4 +172,21 @@ class Conv1D_Block_With_Activation(nn.Module):
         
     def forward(self, input):
         conv_output = self.conv(input)
-        return self.activation(self.norm(conv_output))
+        if True in torch.isnan(conv_output):
+            print(self.num_input_features,self.num_output_features,input,conv_output,torch.mean(torch.mul(input,input)))
+            with open("error.txt","w") as f:
+                f.write(str(input.cpu().numpy().tolist()))
+            raise Exception("Error: nan value found in convolution block: conv")
+        norm_output = self.norm(conv_output)
+        if True in torch.isnan(conv_output):
+            print(self.num_input_features,self.num_output_features,conv_output,norm_output,torch.mean(torch.mul(conv_output,conv_output)))
+            with open("error.txt","w") as f:
+                f.write(str(conv_output.cpu().numpy().tolist()))
+            raise Exception("Error: nan value found in convolution block: norm")
+        output = self.activation(norm_output)
+        if True in torch.isnan(output):
+            print(self.num_input_features,self.num_output_features,norm_output,output,torch.mean(torch.mul(norm_output,norm_output)))
+            with open("error.txt","w") as f:
+                f.write(str(norm_output.cpu().numpy().tolist()))
+            raise Exception("Error: nan value found in convolution block: activation")
+        return output
