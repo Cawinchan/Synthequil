@@ -134,3 +134,4 @@ preprocessed_data/*
 pre-trained_fasttext/
 
 runs/
+checkpoints/*

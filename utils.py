@@ -1,3 +1,4 @@
+import math
 import torch
 
 def save_model(model,optimizer,epoch,path):
@@ -21,9 +22,9 @@ def negative_SDR():
 def negative_SDR_single(pred, target):
     diff = target-pred
     diff = torch.mul(diff,diff)
-    numerator = torch.sum(diff)
+    denominator = torch.sum(diff)
     
-    denominator = torch.sum(torch.mul(target,target))
+    numerator = torch.sum(torch.mul(target,target))
     
-    logarithm = torch.log(numerator/denominator) / 10
-    return 10 * logarithm
+    sdr = torch.log(numerator/denominator) / math.log(10)
+    return sdr * 10 
