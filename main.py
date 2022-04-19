@@ -164,7 +164,7 @@ if __name__=="__main__":
     
     # Get argument parser
     parser = argparse.ArgumentParser(description="Training/testing program for Audio Demixing")
-    parser.add_argument("--dataset-dir", metavar="dataset root dir", help="Root directory for dataset, containing train and test folders; ignored if custom input is specified for test mode", required=True)
+    parser.add_argument("--dataset-dir", metavar="dataset root dir", help="Root directory for dataset, containing train and test folders; ignored if custom input is specified for test mode")
     parser.add_argument("--test", help="Toggle test mode", action="store_true")
     parser.add_argument("--custom-test-dir", metavar="custom test input folder path", help="Custom input folder for testing")
     parser.add_argument("--train-checkpoint_dir", metavar="directory to store checkpoints", help="Directory to store checkpoints of model during training (default: ./checkpoints)", default="./checkpoints")
