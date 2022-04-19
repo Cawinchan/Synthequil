@@ -1,8 +1,9 @@
-from random import sample
 import torch
 import torch.nn as nn
 import copy
-import gc
+
+SCALE_POW = 0.5
+DROPOUT_PROBA = 0.2
 
 class UNet(nn.Module):
 
@@ -50,7 +51,8 @@ class Basic_UNet(nn.Module):
     def forward(self,input):
         shortcuts = []
         
-        intermediate = input
+        intermediate = self.scale_input(input)
+
         for i in self.downsampling_blocks:
             intermediate, shortcut = i(intermediate)
             shortcuts.append(shortcut)
@@ -66,6 +68,14 @@ class Basic_UNet(nn.Module):
         output = self.output_block(output)
         
         return output
+    
+    def scale_input(self,input):
+        sign = torch.where(input > 0,1.0,-1.0)
+        abs_input = torch.abs(input)
+        scaled_abs_input = torch.pow(abs_input,SCALE_POW)
+        scaled_input = torch.mul(sign,scaled_abs_input)
+
+        return scaled_input
 
 class Downsampling_Block(nn.Module):
     
@@ -126,7 +136,7 @@ class Upsampling_Block(nn.Module):
         self.postshortcut_block = []
         for i in range(depth):
             self.postshortcut_block.append(Conv1D_Block_With_Activation(self.num_intermediate_features*2 if i==0 else num_output_features,
-                num_output_features,kernel_size,activation_type,transpose=True,stride=kernel_size//2))
+                num_output_features,kernel_size,activation_type,transpose=True,stride=kernel_size//2,dropout=True))
         self.postshortcut_block = nn.ModuleList(self.postshortcut_block)
 
     def forward(self, input, input_shortcut):
@@ -149,12 +159,13 @@ class Upsampling_Block(nn.Module):
 # Padding set to 0 and stride to 1
 class Conv1D_Block_With_Activation(nn.Module):
     
-    def __init__(self, num_input_features, num_output_features, kernel_size, activation_type, transpose=False, stride=1):
+    def __init__(self, num_input_features, num_output_features, kernel_size, activation_type, transpose=False, stride=1, dropout=False):
         super().__init__()
         
         self.num_input_features = num_input_features
         self.num_output_features = num_output_features
         self.kernel_size = kernel_size
+        self.dropout = nn.Dropout(p=DROPOUT_PROBA) if dropout else None
 
         self.conv = nn.Conv1d(num_input_features,num_output_features,
             kernel_size,stride=stride) if not transpose else nn.ConvTranspose1d(num_input_features,num_output_features,kernel_size,stride=stride)
@@ -176,7 +187,12 @@ class Conv1D_Block_With_Activation(nn.Module):
             print(self.num_input_features,self.num_output_features,input,conv_output,torch.mean(torch.mul(input,input)))
             with open("error.txt","w") as f:
                 f.write(str(input.cpu().numpy().tolist()))
+            with open("error_conv.txt","w") as f:
+                for i in self.parameters():
+                    f.write(str(i.cpu().detach().numpy().tolist()) + "\n")
             raise Exception("Error: nan value found in convolution block: conv")
+        if self.dropout:
+            conv_output = self.dropout(conv_output)
         norm_output = self.norm(conv_output)
         if True in torch.isnan(conv_output):
             print(self.num_input_features,self.num_output_features,conv_output,norm_output,torch.mean(torch.mul(conv_output,conv_output)))

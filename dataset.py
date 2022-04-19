@@ -41,16 +41,21 @@ class DemixingAudioDataset(Dataset):
             idx = idx.tolist()
         
         mixture_waveform, _ = torchaudio.load("{}/{}".format(glob.glob("{}/*".format(self.root_dir))[idx],'mixture.wav'))
+        nonzero_indices = torch.nonzero(torch.flatten(torch.transpose(mixture_waveform,-1,-2)))
+        start_index = nonzero_indices[0].item() // 2
+        end_index = nonzero_indices[-1].item() // 2
+        mixture_waveform = mixture_waveform[:,start_index:end_index+1]
+
         bass_waveform, _ = torchaudio.load("{}/{}".format(glob.glob("{}/*".format(self.root_dir))[idx],'bass.wav'))
         drums_waveform, _ = torchaudio.load("{}/{}".format(glob.glob("{}/*".format(self.root_dir))[idx],'drums.wav'))
         others_waveform, _ = torchaudio.load("{}/{}".format(glob.glob("{}/*".format(self.root_dir))[idx],'other.wav'))
         vocals_waveform, _ = torchaudio.load("{}/{}".format(glob.glob("{}/*".format(self.root_dir))[idx],'vocals.wav'))
 
         mixture_waveform = torch.split(mixture_waveform,self.chunk_size,dim=-1)
-        bass_waveform = torch.split(bass_waveform,self.chunk_size,dim=-1)
-        drums_waveform = torch.split(drums_waveform,self.chunk_size,dim=-1)
-        others_waveform = torch.split(others_waveform,self.chunk_size,dim=-1)
-        vocals_waveform = torch.split(vocals_waveform,self.chunk_size,dim=-1)
+        bass_waveform = torch.split(bass_waveform[:,start_index:end_index+1],self.chunk_size,dim=-1)
+        drums_waveform = torch.split(drums_waveform[:,start_index:end_index+1],self.chunk_size,dim=-1)
+        others_waveform = torch.split(others_waveform[:,start_index:end_index+1],self.chunk_size,dim=-1)
+        vocals_waveform = torch.split(vocals_waveform[:,start_index:end_index+1],self.chunk_size,dim=-1)
 
         sample = (
             

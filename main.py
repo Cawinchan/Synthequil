@@ -13,9 +13,9 @@ from alive_progress import alive_bar
 INSTRUMENTS = ("bass", "drums", "vocals", "other")
 TRAIN_SPLIT = 0.8
 KERNEL_SIZE = 4
-FEATURE_COUNT_LIST = [2] + [16*(2**i) for i in range(5)]
+FEATURE_COUNT_LIST = [2] + [16*(2**i) for i in range(6)]
 SAMPLING_RATE = 44100
-CLIP_TIME = 30
+CLIP_TIME = 15
 
 def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_count):
 
@@ -56,7 +56,7 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
 
     # Define model and optimizer
     audio_model = nn.DataParallel(UNet(FEATURE_COUNT_LIST,KERNEL_SIZE,"leaky_relu",INSTRUMENTS))
-    optimizer = optim.Adam(audio_model.parameters(),0.005)
+    optimizer = optim.Adam(audio_model.parameters(),0.01)
 
     # Define loss criterion
     criterion = negative_SDR()
