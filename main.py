@@ -16,16 +16,22 @@ KERNEL_SIZE = 4
 FEATURE_COUNT_LIST = [2] + [16*(2**i) for i in range(6)]
 SAMPLING_RATE = 44100
 CLIP_TIME = 15
+SAMPLE_BLOCK_DEPTH = 1
+BOTTLENECK_DEPTH = 1
 
 from torch.utils.tensorboard import SummaryWriter
 
-def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_count):
+def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_count, learning_rate, block_count, dropout, dropout_proba, scale_pow):
 
     # Get Tensorboard SummaryWriter
     writer = SummaryWriter()
 
+    # Define number of features before/between/after blocks
+    assert block_count >= 1
+    feature_count_list = [2] + [16*(2**i) for i in range(block_count)]
+
     # Define chunk size
-    chunk_size = calculate_chunk_size(CLIP_TIME*SAMPLING_RATE,1,len(FEATURE_COUNT_LIST),KERNEL_SIZE)
+    chunk_size = calculate_chunk_size(CLIP_TIME*SAMPLING_RATE,SAMPLE_BLOCK_DEPTH,len(feature_count_list),KERNEL_SIZE)
     print("Input to be divided into chunks of {} samples".format(chunk_size))
 
     # Get input directory, checkpoint directory, test model path
@@ -60,8 +66,10 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # Define model and optimizer
-    audio_model = nn.DataParallel(UNet(FEATURE_COUNT_LIST,KERNEL_SIZE,"leaky_relu",INSTRUMENTS))
-    optimizer = optim.Adam(audio_model.parameters(),0.01)
+    audio_model = nn.DataParallel(UNet(feature_count_list,KERNEL_SIZE,"leaky_relu",INSTRUMENTS,
+        sample_block_depth=SAMPLE_BLOCK_DEPTH, bottleneck_depth=BOTTLENECK_DEPTH,
+        dropout=dropout,dropout_proba=dropout_proba,scale_pow=scale_pow).to(device))
+    optimizer = optim.Adam(audio_model.parameters(),learning_rate)
 
     # Define loss criterion
     criterion = negative_SDR()
@@ -156,13 +164,19 @@ if __name__=="__main__":
     
     # Get argument parser
     parser = argparse.ArgumentParser(description="Training/testing program for Audio Demixing")
-    parser.add_argument("--dataset-dir", metavar="dataset root dir", help="Root directory for dataset, containing train and test folders; ignored if custom input is specified for test mode")
+    parser.add_argument("--dataset-dir", metavar="dataset root dir", help="Root directory for dataset, containing train and test folders; ignored if custom input is specified for test mode", required=True)
     parser.add_argument("--test", help="Toggle test mode", action="store_true")
     parser.add_argument("--custom-test-dir", metavar="custom test input folder path", help="Custom input folder for testing")
     parser.add_argument("--train-checkpoint_dir", metavar="directory to store checkpoints", help="Directory to store checkpoints of model during training (default: ./checkpoints)", default="./checkpoints")
     parser.add_argument("--model", metavar="path to model checkpoint", help="File path to model checkpoint for testing or continuing training")
     parser.add_argument("--epoch-count", metavar="number of epochs to train model", help="Number of epochs by which to train model (default: 50)", default=50)
+    parser.add_argument("--learning-rate", metavar="learning rate", help="Learning rate of model (default: 0.1)", default=0.1)
+    parser.add_argument("--block-count", metavar="number of downsampling/upsampling blocks", help="Number of downsampling and of upsampling blocks in model (default: 1)", default=1)
+    parser.add_argument("--dropout", help="Toggle dropout for training", action="store_true")
+    parser.add_argument("--dropout-proba", metavar="dropout probability", help="Probability used for dropout layers; ignored if --dropout is not used as well (default: 0.2)", default=0.2)
+    parser.add_argument("--scale-pow", metavar="power to scale inputs by", help="Exponent to scale input samples by, while preserving amplitude signs (default: 0.5)", default=0.5)
 
     # Parse arguments and call main function
     args = parser.parse_args()
-    main(args.dataset_dir, args.test, args.custom_test_dir, args.train_checkpoint_dir, args.model, int(args.epoch_count))
+    main(args.dataset_dir, args.test, args.custom_test_dir, args.train_checkpoint_dir, args.model, int(args.epoch_count), float(args.learning_rate), int(args.block_count),
+        args.dropout, float(args.dropout_proba), float(args.scale_pow))
