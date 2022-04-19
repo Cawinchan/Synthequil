@@ -17,7 +17,12 @@ FEATURE_COUNT_LIST = [2] + [16*(2**i) for i in range(6)]
 SAMPLING_RATE = 44100
 CLIP_TIME = 15
 
+from torch.utils.tensorboard import SummaryWriter
+
 def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_count):
+
+    # Get Tensorboard SummaryWriter
+    writer = SummaryWriter()
 
     # Define chunk size
     chunk_size = calculate_chunk_size(CLIP_TIME*SAMPLING_RATE,1,len(FEATURE_COUNT_LIST),KERNEL_SIZE)
@@ -109,6 +114,7 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
             print("\tAverage loss during training: {}".format(avg_loss))
             print("\tSaving model...")
             save_model(audio_model,optimizer,current_epoch+1,os.path.join(train_checkpoint_dir,"model_" + str(current_epoch+1)))
+            writer.add_scalar('Average_Loss (Train)', avg_loss, current_epoch+1)
         
         total_loss = 0
         item_count = 0
@@ -143,6 +149,8 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
         
         avg_loss = total_loss / item_count
         print("\tAverage loss during validation/test: {}".format(avg_loss))
+
+        writer.add_scalar('Average_Loss (Validation/Test)', avg_loss, current_epoch+1)
 
 if __name__=="__main__":
     
