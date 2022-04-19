@@ -13,7 +13,6 @@ from alive_progress import alive_bar
 INSTRUMENTS = ("bass", "drums", "vocals", "other")
 TRAIN_SPLIT = 0.8
 KERNEL_SIZE = 4
-FEATURE_COUNT_LIST = [2] + [16*(2**i) for i in range(6)]
 SAMPLING_RATE = 44100
 CLIP_TIME = 15
 SAMPLE_BLOCK_DEPTH = 1
