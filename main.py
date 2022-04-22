@@ -111,11 +111,11 @@ def main(dataset_dir, test, custom_test_dir, train_checkpoint_dir, model, epoch_
                 print('Early stopping!\nStart to test process.')
                 break
 
-        else:
-            print('trigger times: 0')
-            trigger_times = 0
+            else:
+                print('trigger times: {}'.format(patience_triggers))
+                patience_triggers = 0
 
-            past_avg_loss = avg_loss
+                past_avg_loss = avg_loss
         
         total_loss = 0
         with torch.no_grad():
