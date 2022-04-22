@@ -139,3 +139,5 @@ checkpoints/
 checkpoints_old/
 error.txt
 error - Copy.txt
+
+tempDir/*
