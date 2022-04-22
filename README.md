@@ -1,30 +1,27 @@
 # Synthequil
-Audio synthesis project for Theory of Deep Learning SUTD
 
-- Dataset: [Clotho Dataset](https://zenodo.org/record/4783391#.Yjyq-OdByUn) 
-- FastText pre-trained model: [crawl-300d-2M-subword.zip](https://dl.fbaipublicfiles.com/fasttext/vectors-english/crawl-300d-2M-subword.zip): 2 million word vectors trained with subword information on Common Crawl (600B tokens).
+Challenge: Can we take an audio file with 4 instuments played together and output 4 audio files of each seperate instrument
+
+- Dataset: [MUSDB18-HQ](https://zenodo.org/record/3338373#.YknC3DURW3A) 
+  - It consists of a total of 150 full-track songs of different styles and includes both the stereo mixtures and the original sources, divided between a training subset and a test subset.
+- Reference: [Hybrid Spectrogram and Waveform Source Separation](https://arxiv.org/pdf/2111.03600.pdf)
 
 ## File Architecture 
 
 ```
 ├── raw_data
-│     ├── Evaluation                       <- Evaluation music .wav
-|     ├── Development                      <- Training music .wav
-|     ├── clotho_captions_evaluation.csv   <- Evaluation caption labels
-|     └── clotho_metadata_evaluation.csv   <- Evaluation source
+│     ├── test                       <- test music .wav
+|     ├── train                      <- Training music .wav
 | 
-├── preproceseed_data                  
+├── audio_splitter.ipynb             <- Notebook for audio spliting
 | 
-├── pre-trained_fasttext                   <- Pre-trained fasttext model
-| 
-└──audio_synthesis.ipynb                   <- Notebook for audio generation
+└── exploration_code.ipynb           <- Notebook for exploration 
 ```
 
 ## How to install 
 
 ```python3
-  pip install fasttext gensim pandas numpy
+  pip install torch torchaudio pandas numpy torchvision glob matplotlib librosa IPython
 ```
 
-1. Place downloaded Clotho dataset in raw_data folder 
-2. Place downloaded FastText model in pre-trained_fasttext
+1. Place downloaded MUSDB18-HQ dataset in raw_data folder 
