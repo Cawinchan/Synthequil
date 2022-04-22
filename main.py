@@ -125,8 +125,6 @@ def main(dataset_dir: str, log_dir: str, train: bool, custom_test_dir: Optional[
     for current_epoch in range(elapsed_epoch if train else 0, epoch_count if train else 1):
         
         print("Epoch {}:".format(current_epoch+1))
-        start_time = time.time()
-
 
         if train:
 
