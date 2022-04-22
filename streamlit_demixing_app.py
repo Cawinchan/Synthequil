@@ -1,20 +1,201 @@
-import argparse
-import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import Dataset
 from dataset import DemixingAudioDataset
 from unet_model import UNet
 from torch.utils.data import DataLoader, random_split
-from utils import save_model, load_model, negative_SDR
-import time
-import math
-from datetime import datetime
-
-from torch.utils.tensorboard import SummaryWriter
-writer = SummaryWriter()
+from utils import save_model, load_model, negative_SDR, calculate_chunk_size, plot_specgram, plot_waveform
+import copy
+import torchaudio
+import os
 
 INSTRUMENTS = ("bass", "drums", "vocals", "other")
+KERNEL_SIZE = 4
+SAMPLING_RATE = 44100
+CLIP_TIME = 15
+SAMPLE_BLOCK_DEPTH = 1
+BOTTLENECK_DEPTH = 1
+
+
+
+def load_model(model,optimizer,path):
+
+    loaded_data = torch.load(path)
+    model.load_state_dict(loaded_data['model'])
+    optimizer.load_state_dict(loaded_data['optimizer'])
+    return loaded_data['epoch']
+
+class oldUNet(nn.Module):
+
+    def __init__(self, feature_count_list, kernel_size, activation_type, instruments, sample_block_depth=1, bottleneck_depth=1):
+        super().__init__()
+
+        self.feature_count_list = copy.deepcopy(feature_count_list)
+        self.kernel_size = kernel_size
+        self.activation_type = activation_type
+        self.instruments = instruments
+        self.sample_block_depth = sample_block_depth
+        self.bottleneck_depth = bottleneck_depth
+
+        self.models = nn.ModuleDict()
+        for i in instruments:
+            self.models[i] = Basic_UNet(feature_count_list,kernel_size,activation_type,sample_block_depth,bottleneck_depth)
+        
+    def forward(self,input,instrument):
+        return self.models[instrument](input)
+
+class Basic_UNet(nn.Module):
+
+    def __init__(self, feature_count_list, kernel_size, activation_type, sample_block_depth=1, bottleneck_depth=1):
+        super().__init__()
+        
+        self.feature_count_list = copy.deepcopy(feature_count_list)
+        self.kernel_size = kernel_size
+        self.activation_type = activation_type
+        self.sample_block_depth = sample_block_depth
+        self.bottleneck_depth = bottleneck_depth
+        
+        self.downsampling_blocks = nn.ModuleList(
+            [Downsampling_Block(feature_count_list[i],feature_count_list[i+1],kernel_size,
+                activation_type,sample_block_depth) for i in range(len(feature_count_list)-1)]
+        )
+        self.bottleneck_blocks = nn.ModuleList(
+            [Conv1D_Block_With_Activation(feature_count_list[-1],feature_count_list[-1],1,activation_type) for i in range(bottleneck_depth)]
+        )
+        self.upsampling_blocks = nn.ModuleList(
+            [Upsampling_Block(feature_count_list[i],feature_count_list[i-1],kernel_size,
+                activation_type,sample_block_depth) for i in range(len(feature_count_list)-1,0,-1)]
+        )
+        self.output_block = Conv1D_Block_With_Activation(feature_count_list[0],feature_count_list[0],1,"tanh")
+    
+    def forward(self,input):
+        shortcuts = []
+        
+        intermediate = input
+        for i in self.downsampling_blocks:
+            intermediate, shortcut = i(intermediate)
+            shortcuts.append(shortcut)
+        
+        for i in self.bottleneck_blocks:
+            intermediate = i(intermediate)
+        
+        output = intermediate
+        for i in self.upsampling_blocks:
+            shortcut = shortcuts.pop()
+            output= i(output,shortcut)
+
+        output = self.output_block(output)
+        
+        return output
+
+class Downsampling_Block(nn.Module):
+    
+    def __init__(self, num_input_features, num_output_features, kernel_size, activation_type, depth=1):
+        super().__init__()
+
+        self.num_input_features = num_input_features
+        self.num_output_features = num_output_features
+        self.kernel_size = kernel_size
+        self.activation_type = activation_type
+        self.depth = depth
+
+        self.num_intermediate_features = (self.num_input_features + self.num_output_features) // 2
+
+        self.preshortcut_block = []
+        for i in range(depth):
+            self.preshortcut_block.append(Conv1D_Block_With_Activation(num_input_features if i==0 else self.num_intermediate_features,
+                self.num_intermediate_features,kernel_size,activation_type))
+        self.preshortcut_block = nn.ModuleList(self.preshortcut_block)
+        
+        self.postshortcut_block = []
+        for i in range(depth):
+            self.postshortcut_block.append(Conv1D_Block_With_Activation(self.num_intermediate_features if i==0 else num_output_features,
+                num_output_features,kernel_size,activation_type))
+        self.postshortcut_block = nn.ModuleList(self.postshortcut_block)
+    
+    def forward(self, input):
+        shortcut = input
+        for i in self.preshortcut_block:
+            shortcut = i(shortcut)
+
+        output = shortcut
+        for i in self.postshortcut_block:
+            output = i(output)
+        return output, shortcut
+
+class Upsampling_Block(nn.Module):
+
+    def __init__(self, num_input_features, num_output_features, kernel_size, activation_type, depth=1):
+        super().__init__()
+
+        self.num_input_features = num_input_features
+        self.num_output_features = num_output_features
+        self.kernel_size = kernel_size
+        self.activation_type = activation_type
+        self.depth = depth
+
+        self.num_intermediate_features = (self.num_input_features + self.num_output_features) // 2
+
+        self.preshortcut_block = []
+        for i in range(depth):
+            self.preshortcut_block.append(Conv1D_Block_With_Activation(num_input_features if i==0 else self.num_intermediate_features,
+                self.num_intermediate_features,kernel_size,activation_type,True))
+        self.preshortcut_block = nn.ModuleList(self.preshortcut_block)
+        
+        self.shortcut_in_block = Conv1D_Block_With_Activation(self.num_intermediate_features,self.num_intermediate_features,1,"tanh")
+        
+        self.postshortcut_block = []
+        for i in range(depth):
+            self.postshortcut_block.append(Conv1D_Block_With_Activation(self.num_intermediate_features*2 if i==0 else num_output_features,
+                num_output_features,kernel_size,activation_type,True))
+        self.postshortcut_block = nn.ModuleList(self.postshortcut_block)
+
+    def forward(self, input, input_shortcut):
+        
+        intermediate = input
+        for i in self.preshortcut_block:
+            intermediate = i(intermediate)
+        
+        shortcut_filter = self.shortcut_in_block(input_shortcut)
+        shortcut = torch.mul(input_shortcut,shortcut_filter)
+
+        output = torch.cat([intermediate,shortcut],dim=-2)
+        for i in self.postshortcut_block:
+            output = i(output)
+        
+        return output
+
+# Conv1D (or Conv1DTranspose) + Activation
+# Available norms: Leaky ReLU, GELU, Tanh
+# Padding set to 0 and stride to 1
+class Conv1D_Block_With_Activation(nn.Module):
+    
+    def __init__(self, num_input_features, num_output_features, kernel_size, activation_type, transpose=False):
+        super().__init__()
+        
+        self.num_input_features = num_input_features
+        self.num_output_features = num_output_features
+        self.kernel_size = kernel_size
+
+        self.conv = nn.Conv1d(num_input_features,num_output_features,
+            kernel_size) if not transpose else nn.ConvTranspose1d(num_input_features,num_output_features,kernel_size)
+
+        assert activation_type in ("leaky_relu", "gelu", "tanh")
+        self.activation_type = activation_type
+        if activation_type=="leaky_relu":
+            self.activation = nn.LeakyReLU()
+        elif activation_type=="gelu":
+            self.activation = nn.GELU()
+        else:
+            self.activation = nn.Tanh()
+        
+    def forward(self, input):
+        conv_output = self.conv(input)
+        return self.activation(conv_output)
+        
+
+
 import streamlit as st
 
 st.title("50.039: Theory and Practice of Deep Learning - Audio Demixing Project")
@@ -24,9 +205,66 @@ user_input["input_audio"] = st.file_uploader(
     "Pick an audio to test"
 )
 
+st.set_option('deprecation.showPyplotGlobalUse', False)
+
+# with st.form('Form1'):
+#         sample_length = st.slider(label='length of sample', min_value=0, max_value=10, key=4, value=5)
+#         agree = st.checkbox('I agree')
+#         submitted1 = st.form_submit_button('Submit 1')
+
 if user_input["input_audio"]:
+    # manipulate input to expected
+    input = user_input["input_audio"]
+    input_waveform, _ = torchaudio.load(input)
     st.write("Original audio input")
-    st.audio(user_input["input_audio"])
+    st.audio(input)
+
+    loading = st.empty()
+    loading.write("loading....")
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    # load model
+    model_path = "checkpoints\Wave_u_net_adam_lr_0.001_epoch_14"
+    audio_model = nn.DataParallel(oldUNet([2**i for i in range(1,3)],5,"leaky_relu",INSTRUMENTS))
+    optimizer = optim.Adam(audio_model.parameters(),lr=0.001)
+    load_model(audio_model,optimizer,model_path)
+    show_waveform = st.checkbox('Show Waveform')
+    if show_waveform:
+        sample_length = st.slider(label='length of sample', min_value=0, max_value=10, key=4, value=5)
+        sample = input_waveform[:,SAMPLING_RATE*4:SAMPLING_RATE*(sample_length+4)]
+        torchaudio.save(os.path.join("tempDir","input.wav"), sample, SAMPLING_RATE)
+        st.pyplot(plot_waveform(sample,SAMPLING_RATE,title="Original {} secs Waveform".format(sample_length)))
+    show_spectogram = st.checkbox('Show Spectogram')
+    if show_spectogram:
+        if sample_length: 
+            st.pyplot(plot_specgram(sample,SAMPLING_RATE,title="Original {} secs Spectogram".format(sample_length)))
+        else:
+            sample_length = st.slider(label='length of sample', min_value=0, max_value=10, key=4, value=5)
+            sample = input_waveform[:,SAMPLING_RATE*4:SAMPLING_RATE*(sample_length+4)]
+            torchaudio.save(os.path.join("tempDir","input.wav"), sample, SAMPLING_RATE)
+            st.pyplot(plot_specgram(sample,SAMPLING_RATE,title="Original {} secs Spectogram".format(sample_length)))
+    if show_waveform or show_spectogram:
+        st.write("Original {} second sample".format(sample_length))
+        st.audio(os.path.join("tempDir","input.wav"))
+
+
+
+    output = {}
+
+    audio_model.eval()
+
+    with torch.no_grad():
+
+            for instr in INSTRUMENTS:
+                # Use model to predict 
+                pred = audio_model(torch.reshape(input_waveform,(1,2,-1)),instr)
+                pred = torch.reshape(pred,(2,-1))
+                torchaudio.save(os.path.join("tempDir","{}.wav".format(instr)), input_waveform, SAMPLING_RATE)
+                st.write("Demixed {} output".format(instr))
+                st.audio(os.path.join("tempDir","{}.wav".format(instr)))
+                # st.write(pred.shape)
+                # st.audio(pred
+            loading.empty()
+
 
     
 
