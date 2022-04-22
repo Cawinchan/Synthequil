@@ -133,11 +133,8 @@ raw_data/*
 preprocessed_data/*
 pre-trained_fasttext/
 
-runs/
+runs/*
 
-checkpoints/
-checkpoints_old/
-error.txt
-error - Copy.txt
-
-tempDir/*
+checkpoints/*
+logs/*
+test_output/*

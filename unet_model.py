@@ -191,26 +191,20 @@ class Conv1D_Block_With_Activation(nn.Module):
         
     def forward(self, input):
         conv_output = self.conv(input)
-        if True in torch.isnan(conv_output):
-            print(self.num_input_features,self.num_output_features,input,conv_output,torch.mean(torch.mul(input,input)))
-            with open("error.txt","w") as f:
-                f.write(str(input.cpu().numpy().tolist()))
-            with open("error_conv.txt","w") as f:
-                for i in self.parameters():
-                    f.write(str(i.cpu().detach().numpy().tolist()) + "\n")
-            raise Exception("Error: nan value found in convolution block: conv")
+        check_and_handle_nan(conv_output,input,"conv layer")
         if self.dropout:
             conv_output = self.dropout_layer(conv_output)
         norm_output = self.norm(conv_output)
-        if True in torch.isnan(conv_output):
-            print(self.num_input_features,self.num_output_features,conv_output,norm_output,torch.mean(torch.mul(conv_output,conv_output)))
-            with open("error.txt","w") as f:
-                f.write(str(conv_output.cpu().numpy().tolist()))
-            raise Exception("Error: nan value found in convolution block: norm")
+        check_and_handle_nan(norm_output,conv_output,"norm layer")
         output = self.activation(norm_output)
-        if True in torch.isnan(output):
-            print(self.num_input_features,self.num_output_features,norm_output,output,torch.mean(torch.mul(norm_output,norm_output)))
-            with open("error.txt","w") as f:
-                f.write(str(norm_output.cpu().numpy().tolist()))
-            raise Exception("Error: nan value found in convolution block: activation")
+        check_and_handle_nan(output,norm_output,"activation layer")
         return output
+
+# Check if output is nan, and if so, save both input and output to a file and throw exception
+def check_and_handle_nan(output,input,location_str):
+	if True in torch.isnan(output):
+		with open("error_input.txt","w") as f:
+			f.write(str(input.cpu().numpy().tolist()))
+		with open("error_output.txt","w") as f:
+			f.write(str(output.cpu().numpy().tolist()))
+		raise Exception("Error: nan value found in {}; writing layer input and output to error_input.txt and to error_output.txt respectively".format(location_str))
