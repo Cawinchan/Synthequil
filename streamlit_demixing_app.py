@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -199,13 +198,13 @@ class Conv1D_Block_With_Activation(nn.Module):
 
 import streamlit as st
 
-
 st.title("50.039: Theory and Practice of Deep Learning - Audio Demixing Project")
 st.subheader("Input audio (.wav)")
 user_input = {}
 user_input["input_audio"] = st.file_uploader(
     "Pick an audio to test"
 )
+
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
 # with st.form('Form1'):

@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from dataset import DemixingAudioDataset
 from torch.utils.data import DataLoader, random_split
+
 from utils import check_make_dir, generate_model_and_optimizer, load_model_and_optimizer, save_model_and_optimizer, load_model_and_optimizer, negative_SDR, calculate_chunk_size, save_outputs
 from alive_progress import alive_bar
 from typing import Optional
@@ -17,6 +18,7 @@ def main(dataset_dir: str, log_dir: str, train: bool, custom_test_dir: Optional[
 
     # Get device to load samples and model to
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
 
     # Get input directory, test model path
     if train:
@@ -123,6 +125,8 @@ def main(dataset_dir: str, log_dir: str, train: bool, custom_test_dir: Optional[
     for current_epoch in range(elapsed_epoch if train else 0, epoch_count if train else 1):
         
         print("Epoch {}:".format(current_epoch+1))
+        start_time = time.time()
+
 
         if train:
 
@@ -241,6 +245,7 @@ def main(dataset_dir: str, log_dir: str, train: bool, custom_test_dir: Optional[
         print("\tAverage loss during validation/test: {}".format(avg_loss))
 
         writer.add_scalar('Average_Loss (Validation or Test)', avg_loss, current_epoch+1)
+
 
 if __name__=="__main__":
     
