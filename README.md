@@ -1,5 +1,4 @@
 # Synthequil
-Audio Demixing project for Theory of Deep Learning SUTD
 
 Challenge: Can we take an audio file with 4 instuments played together and output 4 audio files of each seperate instrument
 
