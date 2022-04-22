@@ -136,3 +136,4 @@ pre-trained_fasttext/
 checkpoints/*
 logs/*
 test_output/*
+runs/*
