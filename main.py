@@ -116,7 +116,8 @@ def main(dataset_dir: str, log_dir: str, train: bool, custom_test_dir: Optional[
 
     # Get DataLoader objects
     train_dataloader = DataLoader(train_dataset,shuffle=True) if not train_dataset==None else None
-    test_dataloader = DataLoader(test_dataset,shuffle=True)
+    # Shuffle test dataloader only if training
+    test_dataloader = DataLoader(test_dataset,shuffle=train)
 
     # Define loss criterion
     criterion = negative_SDR()
