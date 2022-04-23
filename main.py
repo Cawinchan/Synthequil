@@ -71,7 +71,7 @@ def main(dataset_dir: str, log_dir: str, train: bool, custom_test_dir: Optional[
         current_datetime.month,current_datetime.day,current_datetime.hour,current_datetime.minute)
 
     # Get model configuration identifier
-    model_id = "b{}_lr{}_d{}_scl{}".format(block_count, learning_rate, dropout_proba if dropout else "N", scale_pow)
+    model_id = "b{}_lr{}_d{}_scl{}_sgd".format(block_count, learning_rate, dropout_proba if dropout else "N", scale_pow)
 
     # Check and create directories for log root folder and for model-specific folder
     check_make_dir(log_dir)
@@ -251,11 +251,11 @@ if __name__=="__main__":
     # Get argument parser
     parser = argparse.ArgumentParser(description="Training/testing program for Audio Demixing")
     parser.add_argument("--dataset-dir", metavar="[dataset root dir]", help="Root directory for dataset, containing train and test folders; ignored if custom input is specified for test mode")
-    parser.add_argument("--log-dir", metavar="[root log dir]", help="Root directory to store training/testing logs (default: ./logs)", default="./logs")
+    parser.add_argument("--log-dir", metavar="[root log dir]", help="Root directory to store training/testing logs (default: ./logs-sgd)", default="./logs-sgd")
     parser.add_argument("--test", help="Toggle test mode", action="store_true")
     parser.add_argument("--custom-test-dir", metavar="[custom test input folder path]", help="Custom input folder for testing")
-    parser.add_argument("--train-checkpoint-dir", metavar="[root directory to store checkpoints]", help="Root directory to store checkpoints of model during training (default: ./checkpoints)", default="./checkpoints")
-    parser.add_argument("--test-output-dir", metavar="[output root dir to store test outputs]", help="Root directory to store test outputs; ignored if training (default: ./test_output)", default="./test_output")
+    parser.add_argument("--train-checkpoint-dir", metavar="[root directory to store checkpoints]", help="Root directory to store checkpoints of model during training (default: ./checkpoints-sgd)", default="./checkpoints-sgd")
+    parser.add_argument("--test-output-dir", metavar="[output root dir to store test outputs]", help="Root directory to store test outputs; ignored if training (default: ./test_output-sgd)", default="./test_output-sgd")
     parser.add_argument("--model", metavar="[path to model checkpoint]", help="File path to model checkpoint for testing or continuing training")
     parser.add_argument("--epoch-count", metavar="[number of epochs to train model]", help="Number of epochs by which to train model (default: 50)", default=50)
     parser.add_argument("--learning-rate", metavar="[learning rate]", help="Learning rate of model; ignored if loading model (default: 0.01)", default=0.01)

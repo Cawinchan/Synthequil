@@ -137,3 +137,6 @@ checkpoints/*
 logs/*
 test_output/*
 runs/*
+logs-sgd/*
+checkpoints-sgd/*
+test_output-sgd/*

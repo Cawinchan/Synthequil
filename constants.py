@@ -21,3 +21,6 @@ SAMPLE_BLOCK_DEPTH = 1
 
 # Number of 1x1 convolution layers in bottleneck section of model
 BOTTLENECK_DEPTH = 1
+
+# SGD momentum
+SGD_MOMENTUM = 0.9

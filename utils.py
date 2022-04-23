@@ -79,7 +79,7 @@ def generate_model_and_optimizer(block_count: int, dropout: bool, dropout_proba:
 	audio_model = nn.DataParallel(UNet(feature_count_list,KERNEL_SIZE,"leaky_relu",INSTRUMENTS,
 		sample_block_depth=SAMPLE_BLOCK_DEPTH, bottleneck_depth=BOTTLENECK_DEPTH,dropout=dropout,dropout_proba=dropout_proba,
 		scale_pow=scale_pow).to(device))
-	return audio_model, torch.optim.Adam(audio_model.module.parameters(),learning_rate)
+	return audio_model, torch.optim.SGD(audio_model.module.parameters(),learning_rate,momentum=SGD_MOMENTUM)
 
 # Save test outputs with actual outputs
 def save_outputs(mixture_chunks_list: list[torch.Tensor], pred_waveform_list_dict: dict[str, list[torch.Tensor]],
