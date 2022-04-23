@@ -51,6 +51,21 @@ def negative_SDR_single(pred: torch.Tensor, target: torch.Tensor):
 		output = 10 * logarithm
 		return output
 
+# Calculate weighted negative SDR loss
+def negative_SDR_single_weighted(pred: torch.Tensor, target: torch.Tensor):
+    diff = target-pred
+    diff = torch.mul(diff,diff)
+    weight_mask = torch.arange(start=0,end=diff.shape[-1].item()) - float((diff.shape[-1].item()-1)/2)
+    weight_mask = torch.log(1 + weight_mask)
+    weight_mask = 1 + (0.1 * weight_mask)
+    numerator = torch.sum(torch.mul(diff,weight_mask)) + WEIGHTED_SDR_EPSILON
+    
+    denominator = torch.sum(torch.mul(target,target)) + WEIGHTED_SDR_EPSILON
+    
+    logarithm = torch.log(numerator/denominator) / math.log(10)
+    output = 10 * logarithm
+    return output
+
 # Calculate maximum size of chunk processable without
 # tensor size mismatch in model, given maximum allowable samples in a given chunk
 def calculate_chunk_size(maximum_chunk_length: int, block_count: int):

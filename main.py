@@ -7,7 +7,7 @@ import torch.optim as optim
 from dataset import DemixingAudioDataset
 from torch.utils.data import DataLoader, random_split
 
-from utils import check_make_dir, generate_model_and_optimizer, load_model_and_optimizer, save_model_and_optimizer, load_model_and_optimizer, negative_SDR, calculate_chunk_size, save_outputs
+from utils import check_make_dir, generate_model_and_optimizer, load_model_and_optimizer, negative_SDR_single_weighted, save_model_and_optimizer, load_model_and_optimizer, negative_SDR, calculate_chunk_size, save_outputs
 from alive_progress import alive_bar
 from typing import Optional
 from torch.utils.tensorboard import SummaryWriter
@@ -161,8 +161,9 @@ def main(dataset_dir: str, log_dir: str, train: bool, custom_test_dir: Optional[
 
                             # Get prediction and loss, then backpass and backpropagate
                             pred = audio_model(input_data,instr)
+                            weighted_loss = negative_SDR_single_weighted(pred,target)
                             loss = criterion(pred,target)
-                            loss.backward()
+                            weighted_loss.backward()
                             optimizer.step()
 
                             # Update loss and chunk counters
