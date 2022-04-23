@@ -82,8 +82,8 @@ def generate_model_and_optimizer(block_count: int, dropout: bool, dropout_proba:
 	return audio_model, torch.optim.Adam(audio_model.module.parameters(),learning_rate)
 
 # Save test outputs with actual outputs
-def save_outputs(mixture_chunks_list: list[torch.Tensor], pred_waveform_list_dict: dict[str, list[torch.Tensor]],
-	target_waveform_list_dict: dict[str, list[torch.Tensor]], path: str):
+def save_outputs(mixture_chunks_list: list, pred_waveform_list_dict: dict,
+	target_waveform_list_dict: dict, path: str):
 	# Create directory
 	check_make_dir(path)
 
