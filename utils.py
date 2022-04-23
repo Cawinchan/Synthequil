@@ -6,6 +6,8 @@ import torchaudio
 from unet_model import UNet
 import math
 from constants import *
+import typing
+
 
 # Save model, optimizer and hyperparameters
 def save_model_and_optimizer(model: nn.DataParallel, optimizer: torch.optim, block_count: int,learning_rate: float, dropout_proba: float,
@@ -76,14 +78,14 @@ def check_make_dir(dir: str):
 def generate_model_and_optimizer(block_count: int, dropout: bool, dropout_proba: float, scale_pow: float,
 	learning_rate: float, device: torch.device):
 	feature_count_list = [2] + [16*(2**i) for i in range(block_count)]
-	audio_model = nn.DataParallel(UNet(feature_count_list,KERNEL_SIZE,"leaky_relu",INSTRUMENTS,
+	audio_model = nn.DataParallel(UNet(feature_count_list,KERNEL_SIZE,"gelu",INSTRUMENTS,
 		sample_block_depth=SAMPLE_BLOCK_DEPTH, bottleneck_depth=BOTTLENECK_DEPTH,dropout=dropout,dropout_proba=dropout_proba,
 		scale_pow=scale_pow).to(device))
 	return audio_model, torch.optim.Adam(audio_model.module.parameters(),learning_rate)
 
 # Save test outputs with actual outputs
-def save_outputs(mixture_chunks_list: list[torch.Tensor], pred_waveform_list_dict: dict[str, list[torch.Tensor]],
-	target_waveform_list_dict: dict[str, list[torch.Tensor]], path: str):
+def save_outputs(mixture_chunks_list: typing.List[torch.Tensor], pred_waveform_list_dict: typing.Dict[str, typing.List[torch.Tensor]],
+	target_waveform_list_dict: typing.Dict[str, typing.List[torch.Tensor]], path: str):
 	# Create directory
 	check_make_dir(path)
 

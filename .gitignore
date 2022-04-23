@@ -134,6 +134,9 @@ preprocessed_data/*
 pre-trained_fasttext/
 
 checkpoints/*
+tempDir/*
 logs/*
 test_output/*
 runs/*
+
+
