@@ -46,6 +46,8 @@ def negative_SDR_single(pred: torch.Tensor, target: torch.Tensor):
 		numerator = torch.sum(diff)
 		
 		denominator = torch.sum(torch.mul(target,target))
+		if denominator==0:
+				denominator = 1
 		
 		logarithm = torch.log(numerator/denominator) / math.log(10)
 		output = 10 * logarithm
