@@ -66,8 +66,8 @@ def main(dataset_dir: str, log_dir: str, custom_test_dir: Optional[str],
     # Split datasets only if training
     test_dataset = audio_dataset
 
-    # Get first 20 for attack purposes
-    test_dataloader = DataLoader(torch.utils.data.Subset(test_dataset, range(10)), shuffle=False)
+    # Get first 5 for attack purposes
+    test_dataloader = DataLoader(torch.utils.data.Subset(test_dataset, range(5)), shuffle=False)
 
     # Define loss criterion
     criterion = negative_SDR()
@@ -75,9 +75,9 @@ def main(dataset_dir: str, log_dir: str, custom_test_dir: Optional[str],
     # Validation/Testing
     # Track total loss and number of chunks processed
 
-    etas = [0, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01]
+    epsilons = [0, 0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30]
 
-    total_loss = {eta: 0 for eta in etas}
+    total_loss = {eta: 0 for eta in epsilons}
     chunk_count = 0
 
     # Again, initialize the progress bar
@@ -89,8 +89,8 @@ def main(dataset_dir: str, log_dir: str, custom_test_dir: Optional[str],
             audio_model.eval()
 
             # Keep list of mixture chunks and predicted/target component chunks, if testing
-            attack_chunks = {eta: list() for eta in etas}
-            pred_chunks = {eta: {i: list() for i in INSTRUMENTS} for eta in etas}
+            attack_chunks = {eps: list() for eps in epsilons}
+            pred_chunks = {eps: {i: list() for i in INSTRUMENTS} for eps in epsilons}
             target_chunks = {i: list() for i in INSTRUMENTS}
 
             # Iterate through each chunk
@@ -107,21 +107,21 @@ def main(dataset_dir: str, log_dir: str, custom_test_dir: Optional[str],
                     target = i[1][instr][segment_idx]
                     target_chunks[instr].append(target.detach())
 
-                for eta in etas:
+                for eps in epsilons:
 
-                    input_data = destroy(original_input_data, chunk_size, criterion, audio_model, eta, 1).to(device)
+                    input_data = destroy(original_input_data, chunk_size, criterion, audio_model, eps, 1).to(device)
 
                     # Add mixture chunk to list if testing
-                    attack_chunks[eta].append(input_data.detach())
+                    attack_chunks[eps].append(input_data.cpu().detach())
 
                     for instr in INSTRUMENTS:
                         target = i[1][instr][segment_idx].detach()
 
                         pred = audio_model(input_data, instr)
-                        loss = criterion(pred, target)
+                        loss = criterion(pred, target.to(pred.device))
                         # Save prediction if testing
-                        pred_chunks[eta][instr].append(pred.cpu().detach())
-                        total_loss[eta] += loss.item()
+                        pred_chunks[eps][instr].append(pred.cpu().detach())
+                        total_loss[eps] += loss.item()
 
                 chunk_count += len(INSTRUMENTS)
 
@@ -129,14 +129,14 @@ def main(dataset_dir: str, log_dir: str, custom_test_dir: Optional[str],
             save_attacks(attack_chunks, pred_chunks, target_chunks,
                          os.path.join(model_output_dir, str(idx)))
             bar()
-        for eta in etas:
-            print(f"eta = {eta}: loss = {total_loss[eta]/chunk_count}")
+        for eps in epsilons:
+            print(f"eps = {eps}: loss = {total_loss[eps]/chunk_count}")
 
 
 def destroy(data: torch.Tensor,
             chunk_size: int,
             loss_fn,
-            model: nn.Module, eta: float,
+            model: nn.Module, eps: float,
             iterations: int):
     noise = {i: torch.randn(2, chunk_size).to(data.get_device())/2 for i in INSTRUMENTS}
     for _ in range(iterations):
@@ -151,7 +151,7 @@ def destroy(data: torch.Tensor,
         if data.grad is not None:
             # stop pycharm from complaining that data.grad is set to None,
             # also prevent weird errors if there are no instruments (lol)
-            data += torch.nan_to_num(data.grad) * eta
+            data -= torch.nan_to_num(data.grad) * eps
             data = data.detach().to(data.get_device())
     return data
 
