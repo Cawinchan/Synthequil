@@ -154,7 +154,7 @@ def destroy(data: torch.Tensor,
         if data.grad is not None:
             # stop pycharm from complaining that data.grad is set to None,
             # also prevent weird errors if there are no instruments (lol)
-            data += data.grad * eta
+            data += torch.nan_to_num(data.grad) * eta
     return data
 
 
