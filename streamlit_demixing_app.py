@@ -47,7 +47,7 @@ if user_input["input_audio"]:
     st.write("Original audio input")
     st.audio(user_input["input_audio"])
 
-    selection = st.selectbox("Select model to run",EXPERIMENTS,0,help='test')
+    selection = st.selectbox("Select model to run",EXPERIMENTS,0)
     
     # load model configurations
     model_path = "checkpoints/{}".format(selection)
@@ -127,10 +127,12 @@ if user_input["input_audio"]:
                     torchaudio.save(os.path.join("tempDir","input.wav"), sample, SAMPLING_RATE)
                     st.pyplot(plot_specgram(sample,SAMPLING_RATE,title="Demixed {} {} secs Spectogram".format(i,sample_length)))
         loading.empty()
+
     st.write("--")
+
     do_comparsion = st.checkbox('Compare with another model')
     if do_comparsion:
-        selection_compare = st.selectbox("Select model to compare",EXPERIMENTS,0,help='test')    
+        selection_compare = st.selectbox("Select model to compare",EXPERIMENTS,0)    
         # load model configurations
         model_path = "checkpoints/{}".format(selection_compare)
         audio_model, optimizer, loaded_data = load_model_and_optimizer(device,model_path)

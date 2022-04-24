@@ -215,7 +215,6 @@ class Conv1D_Block_With_Activation(nn.Module):
 
     def forward(self, input):
         conv_output = check_and_handle_nan(self.conv(input))
-        input=check_and_handle_nan(input)
         if self.dropout:
             conv_output = self.dropout_layer(conv_output)
         norm_output = check_and_handle_nan(self.norm(conv_output))
