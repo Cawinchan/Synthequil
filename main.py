@@ -275,7 +275,7 @@ if __name__ == "__main__":
                              "ignored if custom input is specified for test mode")
     parser.add_argument("--log-dir", metavar="[root log dir]",
                         help="Root directory to store training/testing logs (default: ./logs)", default="./logs")
-    parser.add_argument("--test", help="Toggle test mode", type = parse_boolean)
+    parser.add_argument("--test", metavar="[True/False]", help="Toggle test mode (default: False)", type = parse_boolean)
     parser.add_argument("--custom-test-dir", metavar="[custom test input folder path]",
                         help="Custom input folder for testing")
     parser.add_argument("--train-checkpoint-dir", metavar="[root directory to store checkpoints]",
@@ -289,12 +289,12 @@ if __name__ == "__main__":
     parser.add_argument("--epoch-count", metavar="[number of epochs to train model]",
                         help="Number of epochs by which to train model (default: 50)", default=50)
     parser.add_argument("--learning-rate", metavar="[learning rate]",
-                        help="Learning rate of model; ignored if loading model (default: 0.01)", default=0.01)
+                        help="Learning rate of model; ignored if loading model (default: 0.001)", default=0.001)
     parser.add_argument("--block-count", metavar="[number of downsampling/upsampling blocks]",
                         help="Number of downsampling and of upsampling blocks in model; ignored if loading model " +
                              "(default: 1)",
                         default=1)
-    parser.add_argument("--dropout", type=parse_boolean, help="Toggle dropout for training; ignored if loading model")
+    parser.add_argument("--dropout", metavar="[True/False]", type=parse_boolean, help="Toggle dropout for training; ignored if loading model (default: False)")
     parser.add_argument("--dropout-proba", metavar="[dropout probability]",
                         help="Probability used for dropout layers; ignored if --dropout is not used as well " +
                              "(default: 0.2)",
