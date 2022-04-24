@@ -22,7 +22,7 @@ def main(experiment_dir: str, log_dir: str):
     CLIP_TIME = 15
     EXPERIMENTS_DIR = Path(experiment_dir)
     EXPERIMENTS = os.listdir(EXPERIMENTS_DIR)
-    LOG_DIR = log_dir
+    LOG_DIR = Path(log_dir)
 
 
     st.title("50.039: Theory and Practice of Deep Learning - Audio Demixing Project")
@@ -184,7 +184,7 @@ def main(experiment_dir: str, log_dir: str):
                 loading.empty()
 
         # Start TensorBoard
-        st_tensorboard(logdir=LOG_DIR, port=6006, width=1080)
+        st_tensorboard(logdir=LOG_DIR, port=6005, width=1080)
 
 if __name__ == "__main__":
     # Get argument parser
