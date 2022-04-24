@@ -109,16 +109,13 @@ def main(dataset_dir: str, log_dir: str, custom_test_dir: Optional[str],
 
                 for eta in etas:
 
-                    input_data = destroy(original_input_data, chunk_size, criterion, audio_model, eta, 1)
+                    input_data = destroy(original_input_data, chunk_size, criterion, audio_model, eta, 1).to(device)
 
                     # Add mixture chunk to list if testing
-                    attack_chunks[eta].append(input_data)
+                    attack_chunks[eta].append(input_data.detach())
 
                     for instr in INSTRUMENTS:
-                        target = i[1][instr][segment_idx]
-
-                        # Save target if testing
-                        target_chunks[instr].append(target.detach())
+                        target = i[1][instr][segment_idx].detach()
 
                         pred = audio_model(input_data, instr)
                         loss = criterion(pred, target)
@@ -155,6 +152,7 @@ def destroy(data: torch.Tensor,
             # stop pycharm from complaining that data.grad is set to None,
             # also prevent weird errors if there are no instruments (lol)
             data += torch.nan_to_num(data.grad) * eta
+            data = data.detach().to(data.get_device())
     return data
 
 
