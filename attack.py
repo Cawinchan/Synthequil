@@ -107,12 +107,21 @@ def main(dataset_dir: str, log_dir: str, custom_test_dir: Optional[str],
                     target = i[1][instr][segment_idx]
                     target_chunks[instr].append(target.detach())
 
+<<<<<<< HEAD
                 for eps in epsilons:
 
                     input_data = destroy(original_input_data, chunk_size, criterion, audio_model, eps, 1).to(device)
 
                     # Add mixture chunk to list if testing
                     attack_chunks[eps].append(input_data.cpu().detach())
+=======
+                for eta in etas:
+                    print(f"Eta: {eta}")
+                    input_data = destroy(original_input_data, chunk_size, criterion, audio_model, eta, 1)
+
+                    # Add mixture chunk to list if testing
+                    attack_chunks[eta].append(input_data.detach())
+>>>>>>> 07cc147e23dcee12111accee57641cbbc53c6520
 
                     for instr in INSTRUMENTS:
                         target = i[1][instr][segment_idx].detach()
@@ -151,8 +160,13 @@ def destroy(data: torch.Tensor,
         if data.grad is not None:
             # stop pycharm from complaining that data.grad is set to None,
             # also prevent weird errors if there are no instruments (lol)
+<<<<<<< HEAD
             data -= torch.nan_to_num(data.grad) * eps
             data = data.detach().to(data.get_device())
+=======
+            data = data + torch.nan_to_num(data.grad) * eta
+            data = data.detach()
+>>>>>>> 07cc147e23dcee12111accee57641cbbc53c6520
     return data
 
 
