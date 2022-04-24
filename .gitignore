@@ -139,4 +139,9 @@ logs/*
 test_output/*
 runs/*
 
+checkpoints-sgd/*
+logs-sgd/*
 
+attack_outs/*
+
+model_porting.py

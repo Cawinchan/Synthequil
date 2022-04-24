@@ -6,7 +6,7 @@ import copy
 class UNet(nn.Module):
 
     def __init__(self, feature_count_list, kernel_size, activation_type, instruments, sample_block_depth=1,
-                 bottleneck_depth=1, dropout=True, dropout_proba=0.2, scale_pow=0.5):
+                 bottleneck_depth=1, dropout=False, dropout_proba=0.2, scale_pow=0.5):
         super().__init__()
 
         self.feature_count_list = copy.deepcopy(feature_count_list)
@@ -32,7 +32,7 @@ class UNet(nn.Module):
 class Basic_UNet(nn.Module):
 
     def __init__(self, feature_count_list, kernel_size, activation_type, sample_block_depth=1, bottleneck_depth=1,
-                 dropout=True, dropout_proba=0.2, scale_pow=0.5):
+                 dropout=False, dropout_proba=0.2, scale_pow=0.5):
         super().__init__()
 
         self.feature_count_list = copy.deepcopy(feature_count_list)
@@ -54,7 +54,7 @@ class Basic_UNet(nn.Module):
         )
         self.upsampling_blocks = nn.ModuleList(
             [Upsampling_Block(feature_count_list[i], feature_count_list[i - 1], kernel_size,
-                              activation_type, sample_block_depth) for i in range(len(feature_count_list) - 1, 0, -1)]
+                              activation_type, sample_block_depth,dropout=dropout,dropout_proba=dropout_proba) for i in range(len(feature_count_list) - 1, 0, -1)]
         )
         self.output_block = Conv1D_Block_With_Activation(feature_count_list[0], feature_count_list[0], 1, "tanh")
 
@@ -160,7 +160,7 @@ class Upsampling_Block(nn.Module):
             self.postshortcut_block.append(
                 Conv1D_Block_With_Activation(self.num_intermediate_features * 2 if i == 0 else num_output_features,
                                              num_output_features, kernel_size, activation_type, transpose=True,
-                                             stride=kernel_size // 2, dropout=True, dropout_proba=dropout_proba))
+                                             stride=kernel_size // 2, dropout=dropout, dropout_proba=dropout_proba))
         self.postshortcut_block = nn.ModuleList(self.postshortcut_block)
 
     def forward(self, input, input_shortcut):
