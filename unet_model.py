@@ -190,21 +190,14 @@ class Conv1D_Block_With_Activation(nn.Module):
         self.norm = nn.BatchNorm1d(num_output_features)
         
     def forward(self, input):
-        conv_output = self.conv(input)
+        conv_output = check_and_handle_nan(self.conv(input))
         check_and_handle_nan(conv_output,input,"conv layer")
         if self.dropout:
             conv_output = self.dropout_layer(conv_output)
-        norm_output = self.norm(conv_output)
-        check_and_handle_nan(norm_output,conv_output,"norm layer")
-        output = self.activation(norm_output)
-        check_and_handle_nan(output,norm_output,"activation layer")
+        norm_output = check_and_handle_nan(self.norm(conv_output))
+        output = check_and_handle_nan(self.activation(norm_output))
         return output
 
-# Check if output is nan, and if so, save both input and output to a file and throw exception
-def check_and_handle_nan(output,input,location_str):
-	if True in torch.isnan(output):
-		with open("error_input.txt","w") as f:
-			f.write(str(input.cpu().detach().numpy().tolist()))
-		with open("error_output.txt","w") as f:
-			f.write(str(output.cpu().detach().numpy().tolist()))
-		raise Exception("Error: nan value found in {}; writing layer input and output to error_input.txt and to error_output.txt respectively".format(location_str))
+# Check if output is nan, and if so, round nan values to 0
+def check_and_handle_nan(input):
+	return torch.where(torch.isnan(),0,input)
