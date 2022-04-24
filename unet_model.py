@@ -204,7 +204,7 @@ class Conv1D_Block_With_Activation(nn.Module):
 def check_and_handle_nan(output,input,location_str):
 	if True in torch.isnan(output):
 		with open("error_input.txt","w") as f:
-			f.write(str(input.cpu().numpy().tolist()))
+			f.write(str(input.cpu().detach().numpy().tolist()))
 		with open("error_output.txt","w") as f:
-			f.write(str(output.cpu().numpy().tolist()))
+			f.write(str(output.cpu().detach().numpy().tolist()))
 		raise Exception("Error: nan value found in {}; writing layer input and output to error_input.txt and to error_output.txt respectively".format(location_str))
