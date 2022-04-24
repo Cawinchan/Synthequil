@@ -67,7 +67,7 @@ def main(dataset_dir: str, log_dir: str, custom_test_dir: Optional[str],
     test_dataset = audio_dataset
 
     # Get first 20 for attack purposes
-    test_dataloader = torch.utils.data.Subset(test_dataset, range(10))
+    test_dataloader = DataLoader(torch.utils.data.Subset(test_dataset, range(10)), shuffle=False)
 
     # Define loss criterion
     criterion = negative_SDR()
