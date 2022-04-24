@@ -8,8 +8,8 @@ Challenge: Can we take an audio file with 4 instuments played together and outpu
 
 ## How to install 
 
-Ensure that CUDA is installed on device
-Download models/logs: [OneDrive](https://sutdapac-my.sharepoint.com/:f:/g/personal/sean_gunawan_mymail_sutd_edu_sg/EkzVO-y9jCFKkCaRGX91ixQB3USPgRKeX6hfqiKIdWvyLQ?e=be3IOg) (Requires SUTD account)
+- Ensure that CUDA is installed on device
+- Download models/logs: [OneDrive](https://sutdapac-my.sharepoint.com/:f:/g/personal/sean_gunawan_mymail_sutd_edu_sg/EkzVO-y9jCFKkCaRGX91ixQB3USPgRKeX6hfqiKIdWvyLQ?e=be3IOg) (Requires SUTD account)
 
 Run the following command:
 
