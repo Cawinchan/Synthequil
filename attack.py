@@ -141,7 +141,7 @@ def destroy(data: torch.Tensor,
             loss_fn,
             model: nn.Module, eta: float,
             iterations: int):
-    noise = {i: torch.randn(2, chunk_size)/2 for i in INSTRUMENTS}
+    noise = {i: torch.randn(2, chunk_size).to(data.get_device())/2 for i in INSTRUMENTS}
     for _ in range(iterations):
         data.requires_grad = True
         data.grad = None
@@ -151,7 +151,7 @@ def destroy(data: torch.Tensor,
             loss = loss_fn(target, predicted)
             loss.backward()
         data.requires_grad = False
-        if data.grad:
+        if data.grad is not None:
             # stop pycharm from complaining that data.grad is set to None,
             # also prevent weird errors if there are no instruments (lol)
             data += data.grad * eta
