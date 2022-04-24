@@ -26,7 +26,7 @@ Run the following command:
   pip install torch torchaudio pandas numpy torchvision glob matplotlib alive-progress IPython
 ```
 
-## Usage instructions
+## Training/testing instructions
 
 The full list of parameters are as follows:
 ```
@@ -76,12 +76,12 @@ Suppose that you would like to train the main configuration with:
 - Learning rate 0.001
 
 Then you can run:
-```python3
+```
   python main.py --dataset-dir [your dataset root directory here]
 ```
 
 Suppose you also want to test the same configuration for the epoch 50 checkpoint, then run:
-```python3
+```
   python main.py --model [your model path here] --dataset-dir [your dataset root directory here]
 ```
 By default:
