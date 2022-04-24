@@ -17,12 +17,10 @@ SAMPLING_RATE = 44100
 CLIP_TIME = 15
 SAMPLE_BLOCK_DEPTH = 1
 BOTTLENECK_DEPTH = 1
-
-EXPERIMENTS = ["b1_lr0.01_dN_scl0.5/epoch_1-2022_4_23_13_47",
-                "b1_lr0.01_dN_scl0.5/epoch_1-2022_4_23_13_47",
-                
-                
-                ]
+EXPERIMENTS =  ["b6_lr0.0001_d0.2_scl0.5/epoch_2-2022_4_23_4_54",
+                "b6_lr0.0001_d0.2_scl0.5/epoch_10-2022_4_23_7_51",
+                "b6_lr0.0001_d0.2_scl0.5/epoch_50-2022_4_23_7_51",
+                "b1_lr0.01_dN_scl0.5/epoch_1-2022_4_23_13_57"]
 
 import streamlit as st
 
@@ -34,6 +32,9 @@ user_input = {}
 user_input["input_audio"] = st.file_uploader(
     "Pick an audio to test"
 )
+
+
+
 
 # Remove warning for pyplot
 st.set_option('deprecation.showPyplotGlobalUse', False)
@@ -88,9 +89,7 @@ if user_input["input_audio"]:
     # Disable gradient tracking
     with torch.no_grad():
 
-        # Keep list of mixture chunks and predicted/target component chunks, if testing
-        mixture_chunk_list, pred_chunk_list_dict, target_chunk_list_dict = None, None, None
-        mixture_chunk_list = []
+        # Keep list of  predicted component chunks
         pred_chunk_list_dict = {i:list() for i in INSTRUMENTS}
     
         # Iterate through each chunk
@@ -100,16 +99,13 @@ if user_input["input_audio"]:
             input_data = input_waveform_chunks[segment_idx]
             if (input_data.shape[-1]<chunk_size): continue
 
-            # Add mixture chunk to list if testing
-            mixture_chunk_list.append(input_data.detach())
-
             # Move chunk to GPU or alternative
             input_data = input_data.to(device)
             input_data = torch.reshape(input_data,(1,2,-1))
 
             for instr in INSTRUMENTS:
 
-                # Save pred if testing
+                # Save pred
                 pred = audio_model(input_data,instr)
                 pred_chunk_list_dict[instr].append(pred.cpu().detach())
         for i in INSTRUMENTS:
@@ -131,7 +127,57 @@ if user_input["input_audio"]:
                     torchaudio.save(os.path.join("tempDir","input.wav"), sample, SAMPLING_RATE)
                     st.pyplot(plot_specgram(sample,SAMPLING_RATE,title="Demixed {} {} secs Spectogram".format(i,sample_length)))
         loading.empty()
-    selection_compare = st.selectbox("Select model to compare",EXPERIMENTS,0,help='test')    
-    # load model configurations
-    model_path = "checkpoints/{}".format(selection_compare)
-    audio_model, optimizer, loaded_data = load_model_and_optimizer(device,model_path)
+    st.write("--")
+    do_comparsion = st.checkbox('Compare with another model')
+    if do_comparsion:
+        selection_compare = st.selectbox("Select model to compare",EXPERIMENTS,0,help='test')    
+        # load model configurations
+        model_path = "checkpoints/{}".format(selection_compare)
+        audio_model, optimizer, loaded_data = load_model_and_optimizer(device,model_path)
+
+        loading = st.empty()
+        loading.write("loading....")
+
+        output = {}
+
+        audio_model.eval()
+
+        # Disable gradient tracking
+        with torch.no_grad():
+
+            # Keep list predicted component chunks
+            pred_chunk_list_dict = {i:list() for i in INSTRUMENTS}
+        
+            # Iterate through each chunk
+            for segment_idx in range(len(input_waveform_chunks)):
+
+                # Skip chunks without proper size
+                input_data = input_waveform_chunks[segment_idx]
+                if (input_data.shape[-1]<chunk_size): continue
+
+                # Move chunk to GPU or alternative
+                input_data = input_data.to(device)
+                input_data = torch.reshape(input_data,(1,2,-1))
+
+                for instr in INSTRUMENTS:
+
+                    # Save pred if testing
+                    pred = audio_model(input_data,instr)
+                    pred_chunk_list_dict[instr].append(pred.cpu().detach())
+            for i in INSTRUMENTS:
+                output_audio = torch.cat(pred_chunk_list_dict[i],dim=-1).reshape((2,-1))
+                torchaudio.save(os.path.join("tempDir","compare_{}.wav".format(i)), output_audio, SAMPLING_RATE,format="wav")
+                st.write("Demixed {} output".format(i))
+                st.audio(os.path.join("tempDir","compare_{}.wav".format(i)))
+                show_waveform = st.checkbox('Show Comparison Demixed {} Waveform'.format(i))
+                if show_waveform:
+                    sample = output_audio[:,SAMPLING_RATE*4:SAMPLING_RATE*(sample_length+4)]
+                    st.pyplot(plot_waveform(sample,SAMPLING_RATE,title="Demixed Comparison {} {} secs Waveform".format(i,sample_length)))
+                show_spectogram = st.checkbox('Show Comparison Demixed {} Spectogram'.format(i))
+                if show_spectogram:
+                    if sample_length: 
+                        st.pyplot(plot_specgram(sample,SAMPLING_RATE,title="Demixed Comparison {} {} secs Spectogram".format(i,sample_length)))
+                    else:
+                        sample = output_audio[:,SAMPLING_RATE*4:SAMPLING_RATE*(sample_length+4)]
+                        st.pyplot(plot_specgram(sample,SAMPLING_RATE,title="Demixed Comparison {} {} secs Spectogram".format(i,sample_length)))
+            loading.empty()
